@@ -1,0 +1,218 @@
+---
+title: "scatterplots_overall"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r libraries, warning = FALSE, message = FALSE, include = FALSE}
+library(dplyr)
+library(tidyverse)
+```
+
+```{r setup, include=FALSE}
+# Define folder path
+folder_path <- "/Users/orszagl2/Documents/AgHealth/pesticide_data"
+
+# Get all file names in the folder
+file_names <- list.files(folder_path, full.names = TRUE, pattern = "\\.txt$")
+
+# Initialize an empty list to store dataframes
+df_list <- list()
+
+# Loop through files, read them, and store in the list
+for (file in file_names) {
+  # Extract the year from the filename (assuming format like "EPest_1992.txt")
+  year <- gsub("\\D", "", basename(file))  # Remove all non-digit characters
+  
+  # Read the file and add the Year column
+  df <- read.delim(file) %>% mutate(Year = as.numeric(year))
+  
+  # Store in the list with a dynamic name
+  df_list[[paste0("df_", year)]] <- df
+  
+  message(paste("Loaded:", year))  # Print message
+}
+
+# Combine all dataframes into one
+df_combined <- bind_rows(df_list)
+```
+
+```{r fix year column, echo = FALSE}
+df_combined = df_combined%>%mutate(Year = case_when(
+  !is.na(Year) ~ YEAR,
+  TRUE ~ Year
+))%>%
+  select(-c(YEAR))
+
+df_combined$COMPOUND = gsub('.*METOLACHLOR.*', "METOLACHLOR", df_combined$COMPOUND)
+```
+
+```{r group of 69 compounds, echo = FALSE}
+compounds <- df_combined %>%
+  filter(Year == 2019) %>%
+  distinct(COMPOUND) %>% 
+  pull(COMPOUND)
+```
+
+```{r group & filter, include = FALSE}
+df_filtered = df_combined%>%
+  filter(COMPOUND %in% compounds)%>%
+  group_by(COMPOUND, Year)%>%
+  summarize(total_amt_used = sum(EPEST_LOW_KG, na.rm = TRUE)) # sum low estimates
+```
+
+```{r pivot wide, echo = FALSE}
+df_filtered$group = NA
+df_filtered$group[1:200] = 1
+df_filtered$group[201:424] = 2
+df_filtered$group[425:615] = 3
+df_filtered$group[616:819] = 4
+df_filtered$group[819:1026] = 5
+df_filtered$group[1027:1215] = 6
+df_filtered$group[1216:1405] = 7
+df_filtered$group[1406:1578] = 8
+```
+
+# Individual Compound Plots
+I split these alphabetically into groups of ~ 10 and removed any compounds which had datapoints per year above 10 million to allow for consistency in the y-axes. The outliers can be seen on the last scatter plot.
+
+```{r plot 1, echo = FALSE}
+ggplot(data = filter(df_filtered, group ==1 & COMPOUND != "ACETOCHLOR" & COMPOUND != "2,4-D" & COMPOUND != "ATRAZINE"), aes(x = Year, y = total_amt_used/1000000, color = COMPOUND))+
+  geom_point()+
+  geom_line()+
+  scale_y_continuous(limits = c(0, 10))+
+  scale_x_continuous(limits = c(1990, 2020), breaks = c(1990, 1995, 2000, 2005, 2010, 2015, 2020))+
+  labs(x = "Year",
+       y = "Total Amount Used (Millions of Kilograms)")
+```
+
+```{r plot 2, echo = FALSE}
+ggplot(data = filter(df_filtered, group ==2), aes(x = Year, y = total_amt_used/1000000, color = COMPOUND))+
+  geom_point()+
+  geom_line()+
+  scale_y_continuous(limits = c(0,10))+
+  scale_x_continuous(limits = c(1990, 2020), breaks = c(1990, 1995, 2000, 2005, 2010, 2015, 2020))+
+  labs(x = "Year",
+       y = "Total Amount Used (Millions of Kilograms)")
+```
+
+```{r plot 3, echo = FALSE}
+ggplot(data = filter(df_filtered, group ==3 & COMPOUND != "DICAMBA"), aes(x = Year, y = total_amt_used/1000000, color = COMPOUND))+
+  geom_point()+
+  geom_line()+
+  scale_y_continuous(limits = c(0,10))+
+  scale_x_continuous(limits = c(1990, 2020), breaks = c(1990, 1995, 2000, 2005, 2010, 2015, 2020))+
+  labs(x = "Year",
+       y = "Total Amount Used (Millions of Kilograms)")
+```
+
+```{r plot 4, echo = FALSE}
+ggplot(data = filter(df_filtered, group == 4 & COMPOUND != "GLYPHOSATE"), aes(x = Year, y = total_amt_used/1000000, color = COMPOUND))+
+  geom_point()+
+  geom_line()+
+  scale_y_continuous(limits = c(0,10))+
+  scale_x_continuous(limits = c(1990, 2020), breaks = c(1990, 1995, 2000, 2005, 2010, 2015, 2020))+
+  labs(x = "Year",
+       y = "Total Amount Used (Millions of Kilograms)")
+```
+
+```{r plot 5, echo = FALSE}
+ggplot(data = filter(df_filtered, group == 5), aes(x = Year, y = total_amt_used/1000000, color = COMPOUND))+
+  geom_point()+
+  geom_line()+
+  scale_y_continuous(limits = c(0,10))+
+  scale_x_continuous(limits = c(1990, 2020), breaks = c(1990, 1995, 2000, 2005, 2010, 2015, 2020))+
+  labs(x = "Year",
+       y = "Total Amount Used (Millions of Kilograms)")
+```
+
+```{r plot 6, echo = FALSE}
+ggplot(data = filter(df_filtered, group == 6 & COMPOUND != "METOLACHLOR"), aes(x = Year, y = total_amt_used/1000000, color = COMPOUND))+
+  geom_point()+
+  geom_line()+
+  scale_y_continuous(limits = c(0,10))+
+  scale_x_continuous(limits = c(1990, 2020), breaks = c(1990, 1995, 2000, 2005, 2010, 2015, 2020))+
+  labs(x = "Year",
+       y = "Total Amount Used (Millions of Kilograms)")
+```
+
+```{r plot 7, echo = FALSE}
+ggplot(data = filter(df_filtered, group == 7), aes(x = Year, y = total_amt_used/1000000, color = COMPOUND))+
+  geom_point()+
+  geom_line()+
+  scale_y_continuous(limits = c(0,10))+
+  scale_x_continuous(limits = c(1990, 2020), breaks = c(1990, 1995, 2000, 2005, 2010, 2015, 2020))+
+  labs(x = "Year",
+       y = "Total Amount Used (Millions of Kilograms)")
+```
+
+```{r plot 8, echo = FALSE}
+ggplot(data = filter(df_filtered, group == 8), aes(x = Year, y = total_amt_used/1000000, color = COMPOUND))+
+  geom_point()+
+  geom_line()+
+  scale_y_continuous(limits = c(0,10))+
+  scale_x_continuous(limits = c(1990, 2020), breaks = c(1990, 1995, 2000, 2005, 2010, 2015, 2020))+
+  labs(x = "Year",
+       y = "Total Amount Used (Millions of Kilograms)")
+```
+
+```{r plot high compounds, echo = FALSE}
+ggplot(data = filter(df_filtered, COMPOUND == "GLYPHOSATE" | COMPOUND == "DICAMBA" | COMPOUND == "ATRAZINE" |COMPOUND == "ACETOCHLOR" | COMPOUND == "2,4-D" | COMPOUND == "METALOCHLOR"), aes(x = Year, y = total_amt_used/1000000, color = COMPOUND))+
+  geom_point()+
+  geom_line()+
+  scale_x_continuous(limits = c(1990, 2020), breaks = c(1990, 1995, 2000, 2005, 2010, 2015, 2020))+
+  scale_y_continuous(limits = c(0, 150))+
+  labs(x = "Year",
+       y = "Total Amount Used (Millions of Kilograms)")
+```
+
+These are the outliers, which were reducing the readability of the other graphs. Any of the graphs can easily be redone to show a smaller number of compounds or different axes! 
+
+\newpage
+
+# Total Graphs
+
+These graphs compare the amount of total pesticide reported when looking ONLY at the 67 compounds that are available for 2019 vs. the total amount reported when considering the much larger number of compounds available for earlier years. Again, these can be modified if how they are presented here is unclear! 
+
+```{r create total dataframe per year & analyze percentages, echo = FALSE}
+df_total_high = df_filtered%>%
+  group_by(Year)%>%
+  summarize(top_compounds_year = sum(total_amt_used, na.rm = TRUE))
+
+df_total = df_combined%>%
+  group_by(Year)%>%
+  summarize(total_year = sum(EPEST_LOW_KG, na.rm = TRUE))
+
+df_total_comp = cbind(df_total, select(df_total_high, -c('Year')))
+df_total_comp = df_total_comp%>%
+  mutate(pct = top_compounds_year / total_year * 100)
+```
+
+```{r pivoted dataframe, echo = FALSE}
+df_total_pivoted = df_total_comp%>%
+  pivot_longer(cols = -c(Year, pct))
+df_total_pivoted = df_total_pivoted%>%
+  mutate(name = case_when(
+    name == "top_compounds_year" ~"2019 Compounds Only",
+    name == "total_year" ~ "All Compounds"
+  ))
+```
+
+```{r bar graph totals, echo = FALSE}
+ggplot(df_total_pivoted, aes(x = Year, y = value/10^6, fill = name))+
+  geom_bar(stat = 'identity', position = 'identity')+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1))+
+  labs(x = "Year", y = "Estimate of Millions of KG of Total Pesticide", fill = "Category")+
+  scale_x_continuous(limits = c(1990, 2020), breaks = c(1990, 1995, 2000, 2005, 2010, 2015, 2020))
+```
+
+```{r scatter plot percentages, echo = FALSE}
+ggplot(df_total_comp, aes(x = Year, y = pct))+
+  geom_bar(stat = 'identity', fill = 'blue4') +
+  geom_abline(slope = 0, intercept = 50, color = "pink")+
+  scale_x_continuous(limits = c(1990, 2020), breaks = c(1990, 1995, 2000, 2005, 2010, 2015, 2020))+
+  scale_y_continuous(limits = c(0,100))+
+  labs(x= "Year", 
+       y = "Percent of Total Amount Accounted for by 2019 Pesticides")
+```
+This shows that starting in 2009, the 67 compounds explain >50% of the total amount of pesticide reported overall.

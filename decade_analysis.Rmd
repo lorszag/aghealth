@@ -1,0 +1,171 @@
+---
+title: "Decade Comparisons (USGS)"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+```{r setup, include = FALSE}
+library(dplyr)
+library(tidyverse)
+library(kableExtra)
+library(huxtable)
+library(ggplot2)
+```
+
+```{r read in datasets, include=FALSE}
+df_2000 = read.delim('/Users/orszagl2/Documents/AgHealth/pesticide_data/EPest.county.estimates.2000.txt')
+df_2010 = read.delim('/Users/orszagl2/Documents/AgHealth/pesticide_data/EPest.county.estimates.2010.txt')
+df_2019 = read.delim('/Users/orszagl2/Documents/AgHealth/pesticide_data/EPest_county_estimates_2019.txt')
+df_1995 = read.delim('/Users/orszagl2/Documents/AgHealth/pesticide_data/EPest.county.estimates.1995.txt')
+df_2018 = read.delim('/Users/orszagl2/Documents/AgHealth/pesticide_data/EPest_county_estimates_2018.txt')
+```
+
+```{r combine metalochlor}
+df_2010$COMPOUND = gsub('.*METOLACHLOR.*', "METOLACHLOR", df_2010$COMPOUND)
+df_2000$COMPOUND = gsub('.*METOLACHLOR.*', "METOLACHLOR", df_2000$COMPOUND)
+df_2018$COMPOUND = gsub('.*METOLACHLOR.*', "METOLACHLOR", df_2018$COMPOUND)
+```
+
+```{r grouped dfs, include = FALSE}
+# 2000
+df_2000_grouped = df_2000%>%
+  group_by(COMPOUND)%>%
+  summarize(low_est = sum(EPEST_LOW_KG, na.rm = TRUE),
+         high_est = sum(EPEST_HIGH_KG, na.rm = TRUE))%>%
+  arrange(desc(low_est))
+
+# 2010 
+df_2010_grouped = df_2010%>%
+  group_by(COMPOUND)%>%
+  summarize(low_est = sum(EPEST_LOW_KG, na.rm = TRUE),
+         high_est = sum(EPEST_HIGH_KG, na.rm = TRUE))%>%
+  arrange(desc(low_est))
+
+# 2019
+df_2019_grouped = df_2019%>%
+  group_by(COMPOUND)%>%
+  summarize(low_est = sum(EPEST_LOW_KG, na.rm = TRUE),
+         high_est = sum(EPEST_HIGH_KG, na.rm = TRUE))%>%
+  arrange(desc(low_est))
+
+# 2018
+df_2018_grouped = df_2018%>%
+  group_by(COMPOUND)%>%
+  summarize(low_est = sum(EPEST_LOW_KG, na.rm = TRUE),
+         high_est = sum(EPEST_HIGH_KG, na.rm = TRUE))%>%
+  arrange(desc(low_est))
+
+# 1995 
+df_1995_grouped = df_1995%>%
+  group_by(COMPOUND)%>%
+  summarize(low_est = sum(EPEST_LOW_KG, na.rm = TRUE),
+         high_est = sum(EPEST_HIGH_KG, na.rm = TRUE))%>%
+  arrange(desc(low_est))
+```
+
+
+```{r number of compounds available}
+overall_desc = data.frame(compounds_2000 = dim(df_2000_grouped)[1],
+                          compounds_2010 = dim(df_2010_grouped)[1],
+                          compounds_2019 = dim(df_2019_grouped)[1])
+overall_desc%>%
+  kable(col.names = c("2000", "2010", "2019"))
+```
+Final annual pesticide-use estimates, for approximately 400 compounds, from 2018-22 will be published in 2025.
+
+In 2015, the dataset stopped including seed-applied pesticides, one of the most widespread methods of application, and one that is not reported anywhere else. In 2019, the scope narrowed further to track only 72 pesticides, reducing the number of tracked chemicals by roughly 80 percent and the amount applied by 40 percent.
+
+```{r top compounds, each of the years}
+top_10 = data.frame(compounds_2000 = df_2000_grouped$COMPOUND[1:10],
+                    low_est_2000 = prettyNum(df_2000_grouped$low_est[1:10], big.mark = ","),
+                    compounds_2010 = df_2010_grouped$COMPOUND[1:10],
+                    low_est_2010 = prettyNum(df_2010_grouped$low_est[1:10], big.mark = ","),
+                    compounds_2019 = df_2019_grouped$COMPOUND[1:10],
+                    low_est_2019 = prettyNum(df_2019_grouped$low_est[1:10], big.mark = ","))
+top_10%>%
+  kable(col.names = c("2000 Compound", "2000 Low Estimate", 
+                      "2010 Compound", "2010 Low Estimate", 
+                      "2019 Compound", "2019 Low Estimate"), row.names = TRUE)%>%
+  kable_styling(font_size = 7)%>%
+  landscape()
+```
+
+```{r graphing 2000 compounds}
+graph = data.frame(COMPOUND= df_2000_grouped$COMPOUND[1:10],
+                   low_est_2000 = df_2000_grouped$low_est[1:10])
+graph = graph %>%
+  left_join(df_2010_grouped, by = "COMPOUND") %>%
+  left_join(df_2019_grouped, by = "COMPOUND", suffix = c("_2010", "_2019"))%>%
+  pivot_longer(names_pattern = "(.+)_(.+)", names_to = c("type", "year"), cols = -COMPOUND)%>%
+  filter(type == "low_est")
+
+ggplot(graph, aes(x = COMPOUND, y = value, fill = year))+
+  geom_bar(stat = 'identity', position = 'dodge')+
+  theme(axis.text.x = element_text(angle = 90, vjust = 1))+
+  labs(x = "Compound", y = "Low Estimate (KG of active Ingredient)")
+```
+
+```{r correlation dataframe}
+df_corr = inner_join(df_2000_grouped, df_2010_grouped, by = "COMPOUND", suffix = c("_2000", "_2010"))
+df_corr = inner_join(df_corr, df_2018_grouped, by = "COMPOUND")
+```
+
+```{r actual correlation}
+cor(df_corr$low_est_2000, df_corr$low_est_2010)
+cor(df_corr$low_est_2010, df_corr$low_est)
+cor(df_corr$low_est_2000, df_corr$low_est)
+```
+
+```{r grouped dfs by state, include = FALSE}
+# 2000
+df_2000_grouped_st = df_2000%>%
+  group_by(COMPOUND, STATE_FIPS_CODE)%>%
+  summarize(low_est = sum(EPEST_LOW_KG, na.rm = TRUE),
+         high_est = sum(EPEST_HIGH_KG, na.rm = TRUE))%>%
+  arrange(desc(low_est))
+
+# 2010 
+df_2010_grouped_st = df_2010%>%
+  group_by(COMPOUND, STATE_FIPS_CODE)%>%
+  summarize(low_est = sum(EPEST_LOW_KG, na.rm = TRUE),
+         high_est = sum(EPEST_HIGH_KG, na.rm = TRUE))%>%
+  arrange(desc(low_est))
+
+# 2018
+df_2018_grouped_st = df_2018%>%
+  group_by(COMPOUND, STATE_FIPS_CODE)%>%
+  summarize(low_est = sum(EPEST_LOW_KG, na.rm = TRUE),
+         high_est = sum(EPEST_HIGH_KG, na.rm = TRUE))%>%
+  arrange(desc(low_est))
+```
+
+```{r within state corr dataframe}
+df_corr_st = inner_join(df_2000_grouped_st, df_2010_grouped_st, by = c("COMPOUND", "STATE_FIPS_CODE"), suffix = c("_2000", "_2010"))
+df_corr_st = inner_join(df_corr_st, df_2018_grouped_st, by = c("COMPOUND", "STATE_FIPS_CODE"))
+```
+
+```{r within state correlations}
+cor(df_corr_st$low_est_2000, df_corr_st$low_est_2010, use = "pairwise.complete.obs")
+cor(df_corr_st$low_est_2000, df_corr_st$low_est, use = "pairwise.complete.obs")
+cor(df_corr_st$low_est_2010, df_corr_st$low_est, use = "pairwise.complete.obs")
+```
+
+How the estimates are collected:
+https://pubs.usgs.gov/sir/2013/5009/
+"Annual EPest-low and EPest-high use totals were compared with other published pesticide-use reports for selected pesticides, crops, and years. EPest-low and EPest‑high national totals for five of seven herbicides were in close agreement with U.S. Environmental Protection Agency and National Pesticide Use Data estimates, but greater than most NASS national totals."
+
+"Surveyed pesticide-use data were used in conjunction with county annual harvested-crop acres reported by the U.S. Department of Agriculture 2007 and 2012 Censuses of Agriculture and the 2008–11 County Agricultural Production Survey to calculate use rates per harvested-crop acre, or an “estimated pesticide use” (EPest) rate, for each crop by year."
+
+Data Sources: 
+(1) proprietary pesticide-by-crop use estimates reported for CRDs (Crop reporting districts); 
+(2) USDA county harvestedcrop acreage reported in the 1992, 1997, 2002, and 2007 Census of Agriculture (http://www.agcensus.usda.gov/), and NASS annual harvested-crop acreage data collected from crop surveys for non-census years (http://quickstats.nass.usda.gov/); 
+(3) boundaries for CRDs and counties; 
+(4) regional boundaries derived from USDA Farm Resource Regions; and
+(5) pesticide-use information from California DPR-PUR.
+
+Different Estimates:
+"Both methods incorporated surveyed and extrapolated rates to estimate pesticide use for counties, but EPest-low and EPest-high estimations differed in how they treated situations when a CRD was surveyed and pesticide use was not reported for a particular pesticide-by-crop combination." Low assumed 0 use; high uses rates from neighboring crop reporting districts.
+
+
+Additional articles:
+https://undark.org/2024/02/29/usgs-pesticide-database/
+https://entomologytoday.org/2023/06/29/pesticide-national-synthesis-project-essential-database-disappearing/#:~:text=In%202019%2C%20the%20scope%20narrowed,amount%20applied%20by%2040%20percent

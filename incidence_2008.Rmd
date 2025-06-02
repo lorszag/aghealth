@@ -1,0 +1,79 @@
+---
+title: "2008 USGS/SEER Comparison (All Sites)"
+output:
+  pdf_document: default
+  html_document: default
+date: "2025-05-20"
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(readxl)
+```
+
+```{r read in data, include=FALSE}
+df_2008 = read.delim('/Users/orszagl2/Documents/AgHealth/pesticide_data/EPest.county.estimates.2008.txt')
+incidence_data = read_excel('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/2008_Incidence_Rates.xlsx')
+```
+
+```{r fix metolachlor & states, echo = FALSE, warning = FALSE}
+df_2008$COMPOUND = gsub('.*METOLACHLOR.*', "METOLACHLOR", df_2008$COMPOUND)
+colnames(incidence_data)[1] = "county"
+incidence_data$STATE_FIPS_CODE <- sub("^0+", "", substr(gsub(".*\\((\\d{5})\\).*", "\\1", incidence_data$county), 1, 2))
+incidence_data$COUNTY_FIPS_CODE <- substr(gsub(".*\\((\\d{5})\\).*", "\\1", incidence_data$county), 3, 5)
+incidence_data$STATE_FIPS_CODE <- as.numeric(incidence_data$STATE_FIPS_CODE)
+incidence_data$COUNTY_FIPS_CODE <- as.numeric(incidence_data$COUNTY_FIPS_CODE)
+```
+
+```{r create separate dataframes for population vs rate, include = FALSE}
+incidence_count = incidence_data[2:637, c(1, seq(from = 3, to =306, by = 3), 308, 309)]
+names(incidence_count) <- gsub("\\.\\.\\.[0-9]+$", "", names(incidence_count))
+incidence_pop = incidence_data[2:637, c(1, seq(from = 4, to =307, by = 3), 308, 309)]
+names(incidence_pop) <- gsub("\\.\\.\\.[0-9]+$", "", names(incidence_pop))
+incidence_rate = incidence_data[2:637, c(1, seq(from = 2, to =305, by = 3), 308, 309)]
+names(incidence_rate) <- gsub("\\.\\.\\.[0-9]+$", "", names(incidence_rate))
+```
+
+```{r convert to numeric df, warning = FALSE, include = FALSE}
+incidence_rate[, 2:103] <- apply(incidence_rate[, 2:103], 2, function(x) as.numeric(as.character(x)))
+```
+
+```{r join dfs}
+df_2008_grouped = df_2008%>%
+  group_by(STATE_FIPS_CODE, COUNTY_FIPS_CODE)%>%
+  summarize(low_est = sum(EPEST_LOW_KG, na.rm = TRUE),
+         high_est = sum(EPEST_HIGH_KG, na.rm = TRUE))
+
+incidence_total = incidence_rate[, c(1:2, 104, 105)]
+incidence_total = incidence_total%>%inner_join(df_2008_grouped, by = c("STATE_FIPS_CODE", "COUNTY_FIPS_CODE"))
+```
+
+```{r}
+incidence_total%>%filter(low_est>2.5e6)
+```
+
+https://www.pesticidereform.org/wp-content/uploads/2021/01/ex_sum_cd_08.pdf (California 2008 Pesticide Application)
+
+```{r}
+incidence_total_no_ca = incidence_total%>%filter(STATE_FIPS_CODE != 6)
+cor.test(incidence_total$`All Sites`, incidence_total$low_est)
+cor.test(incidence_total_no_ca$`All Sites`, incidence_total_no_ca$low_est)
+```
+
+```{r}
+ggplot(incidence_total, aes(x = low_est, y = `All Sites`, color = STATE_FIPS_CODE))+
+  geom_point()
+ggplot(incidence_total_no_ca, aes(x = low_est, y = `All Sites`, color = STATE_FIPS_CODE))+
+  geom_point()
+```
+
+```{r}
+ggplot(incidence_total, aes(x = `All Sites`))+
+  geom_histogram(binwidth = 50, color = 'cornflowerblue')+
+  scale_x_continuous(limits = c (0,1250))
+ggplot(incidence_total, aes(x = low_est))+
+  geom_histogram()
+ggplot(incidence_total_no_ca, aes(x = low_est))+
+  geom_histogram()
+```
