@@ -77,3 +77,25 @@ ggplot(incidence_total, aes(x = low_est))+
 ggplot(incidence_total_no_ca, aes(x = low_est))+
   geom_histogram()
 ```
+
+# Comparisons of Different Cancers
+```{r}
+incidence_total_all_can = incidence_rate%>%inner_join(df_2008_grouped, by = c("STATE_FIPS_CODE", "COUNTY_FIPS_CODE"))
+
+results <- incidence_total_all_can %>%
+  select(low_est, 2:103) %>%
+  pivot_longer(-low_est, names_to = "variable", values_to = "value") %>%
+  group_by(variable) %>%
+  summarize(
+    test = list(cor.test(low_est, value, use = "complete.obs")),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    correlation = map_dbl(test, ~ .x$estimate),
+    p_value = map_dbl(test, ~ .x$p.value)
+  ) %>%
+  select(variable, correlation, p_value)
+
+results%>%filter(p_value<0.05)
+```
+
