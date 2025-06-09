@@ -1,0 +1,92 @@
+---
+title: "Registry Analysis"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup & read in file, include=FALSE}
+library(readxl)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+data = read_excel('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Miscellaneous/SEER & USGS Analysis/2008_Rates_by_Registry.xlsx')
+exp = read.delim('/Users/orszagl2/Documents/AgHealth/pesticide_data/EPest.county.estimates.2008.txt')
+```
+
+```{r reshape data, include = FALSE}
+exp$COMPOUND = gsub('.*METOLACHLOR.*', "METOLACHLOR", exp$COMPOUND)
+colnames(data)[1] = "registry"
+```
+
+```{r create separate dataframes for population vs rate, include = FALSE}
+incidence_count = data[2:18, c(1, seq(from = 3, to =306, by = 3))]
+names(incidence_count) <- gsub("\\.\\.\\.[0-9]+$", "", names(incidence_count))
+incidence_pop = data[2:18, c(1, seq(from = 4, to =307, by = 3))]
+names(incidence_pop) <- gsub("\\.\\.\\.[0-9]+$", "", names(incidence_pop))
+incidence_rate = data[2:18, c(1, seq(from = 2, to =305, by = 3))]
+names(incidence_rate) <- gsub("\\.\\.\\.[0-9]+$", "", names(incidence_rate))
+```
+
+```{r as numeric, include = FALSE}
+incidence_rate[, 2:103] <- apply(incidence_rate[, 2:103], 2, function(x) as.numeric(as.character(x)))
+```
+
+```{r all sites comparison}
+ggplot(incidence_rate)+
+  geom_bar(aes(x = registry, y = `All Sites`), stat = "identity")+
+  scale_y_continuous(limits = c(0, 800))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+  labs(x = "Registry", y = "All Sites Rate")
+```
+
+```{r pivot, include = FALSE}
+long_data = incidence_rate%>%pivot_longer(cols = -registry)
+```
+
+```{r alaska}
+long_data%>%
+  filter(registry == "Alaska Natives" & name != "All Sites")%>%
+  ggplot()+
+    geom_point(aes(x = name, y = value)) +
+    labs(x = "Cancer Type", y = "Rate per 100,000", title = "Alaska Natives Incidence")+
+    theme_minimal() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+```{r atl}
+long_data%>%
+  filter(registry == "Atlanta (Metropolitan)" & name != "All Sites")%>%
+  ggplot()+
+    geom_point(aes(x = name, y = value)) +
+    labs(x = "Cancer Type", y = "Rate per 100,000", title = "Atlanta Incidence")+
+    theme_minimal() + 
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+```{r create exposure dataframes}
+exp = exp%>%mutate(
+  registry = case_when(STATE_FIPS_CODE == 2 ~ "Alaska Natives",
+                       STATE_FIPS_CODE == 13 & COUNTY_FIPS_CODE %in% c(63, 67, 89, 121,135) ~ "Atlanta (Metropolitan)",
+                      STATE_FIPS_CODE == 9 ~ "Connecticut",
+                      STATE_FIPS_CODE == 15 ~ "Hawaii",
+                      STATE_FIPS_CODE == 19 ~ "Iowa",
+                      STATE_FIPS_CODE == 21 ~ "Kentucky",
+                      STATE_FIPS_CODE == 6 & COUNTY_FIPS_CODE == 37 ~ "Los Angeles",
+                      STATE_FIPS_CODE == 22 ~ "Louisiana",
+                      STATE_FIPS_CODE == 34 ~ "New Jersey",
+                      STATE_FIPS_CODE == 35 ~ "New Mexico",
+                      STATE_FIPS_CODE == 13 & COUNTY_FIPS_CODE %in% c(125, 133, 141, 159, 163, 211, 237, 301, 303) ~ "Rural Georgia",
+                      STATE_FIPS_CODE == 6 & COUNTY_FIPS_CODE %in% c(1, 13, 41, 75, 81) ~ "San Francisco-Oakland SMSA",
+                      STATE_FIPS_CODE == 6 & COUNTY_FIPS_CODE %in% c(53, 69, 85, 87) ~ "San Jose-Monterey",
+                      STATE_FIPS_CODE == 53 & COUNTY_FIPS_CODE %in% c(9, 27, 29, 31, 33, 35, 45, 53, 67, 73) ~ "Seattle (Puget Sound)",
+                      STATE_FIPS_CODE == 49 ~ "Utah")
+)
+
+exp_registry = exp%>%group_by(registry)%>%summarize(total = sum(EPEST_LOW_KG, na.rm = TRUE))
+```
+
+```{r all sites correlations}
+registry_joined = inner_join(exp_registry, incidence_rate, by = 'registry')
+cor.test(registry_joined$total, registry_joined$`All Sites`)
+```
+
