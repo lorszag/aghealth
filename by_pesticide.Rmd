@@ -1,0 +1,128 @@
+---
+title: "By Pesticide Category Analysis"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(readxl)
+df_2008 = read.delim('/Users/orszagl2/Documents/AgHealth/pesticide_data/EPest.county.estimates.2008.txt')
+incidence_data = read_excel('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Miscellaneous/SEER & USGS Analysis/2008_Incidence_Rates.xlsx')
+compound_categories = read_excel('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth//Miscellaneous/SEER & USGS Analysis/usgs_compounds_v2.xlsx')
+```
+
+```{r fix metolachlor & states, echo = FALSE, warning = FALSE}
+colnames(incidence_data)[1] = "county"
+incidence_data$STATE_FIPS_CODE <- sub("^0+", "", substr(gsub(".*\\((\\d{5})\\).*", "\\1", incidence_data$county), 1, 2))
+incidence_data$COUNTY_FIPS_CODE <- substr(gsub(".*\\((\\d{5})\\).*", "\\1", incidence_data$county), 3, 5)
+incidence_data$STATE_FIPS_CODE <- as.numeric(incidence_data$STATE_FIPS_CODE)
+incidence_data$COUNTY_FIPS_CODE <- as.numeric(incidence_data$COUNTY_FIPS_CODE)
+```
+
+```{r create separate dataframes for population vs rate, include = FALSE}
+incidence_count = incidence_data[2:637, c(1, seq(from = 3, to =306, by = 3))]
+names(incidence_count) <- gsub("\\.\\.\\.[0-9]+$", "", names(incidence_count))
+incidence_pop = incidence_data[2:637, c(1, seq(from = 4, to =307, by = 3), 308, 309)]
+names(incidence_pop) <- gsub("\\.\\.\\.[0-9]+$", "", names(incidence_pop))
+incidence_rate = incidence_data[2:637, c(1, seq(from = 2, to =305, by = 3), 308, 309)]
+names(incidence_rate) <- gsub("\\.\\.\\.[0-9]+$", "", names(incidence_rate))
+```
+
+```{r convert to numeric df, warning = FALSE, include = FALSE}
+incidence_rate[, 2:103] <- apply(incidence_rate[, 2:103], 2, function(x) as.numeric(as.character(x)))
+```
+
+```{r group exposure dataframe, include = FALSE}
+colnames(compound_categories)[2] = 'category'
+compound_categories = compound_categories %>%
+  separate(category, into = c("general", "specific"), sep = " \\(", remove = FALSE) %>%
+  mutate(specific = gsub("\\)", "", specific))
+
+fungicides = compound_categories%>%filter(general == "fungicides")
+insecticides = compound_categories%>%filter(general == "insecticides")
+herbicides = compound_categories%>%filter(general == "herbicides")
+```
+
+```{r join exposure dataframes, include = FALSE}
+fungicides_exp = inner_join(fungicides, df_2008)%>%group_by(STATE_FIPS_CODE, COUNTY_FIPS_CODE)%>%summarize(amt_fung = sum(EPEST_LOW_KG, na.rm = TRUE))
+insecticides_exp = inner_join(insecticides, df_2008)%>%group_by(STATE_FIPS_CODE, COUNTY_FIPS_CODE)%>%summarize(amt_insect = sum(EPEST_LOW_KG, na.rm = TRUE))
+herbicides_exp = inner_join(herbicides, df_2008)%>%group_by(STATE_FIPS_CODE, COUNTY_FIPS_CODE)%>%summarize(amt_herb = sum(EPEST_LOW_KG, na.rm = TRUE))
+```
+```{r join, include = FALSE}
+incidence_total = incidence_rate%>%
+  inner_join(fungicides_exp, by = c("STATE_FIPS_CODE", "COUNTY_FIPS_CODE"))%>%
+  inner_join(insecticides_exp, by = c("STATE_FIPS_CODE", "COUNTY_FIPS_CODE"))%>%
+  inner_join(herbicides_exp, by = c("STATE_FIPS_CODE", "COUNTY_FIPS_CODE"))
+```
+
+```{r correlation tests}
+cor.test(incidence_total$`All Sites`, incidence_total$amt_fung)
+cor.test(incidence_total$`All Sites`, incidence_total$amt_insect)
+cor.test(incidence_total$`All Sites`, incidence_total$amt_herb)
+```
+```{r plots of exposure amounts}
+ggplot(incidence_total)+
+  geom_histogram(aes(x = amt_fung))+
+  labs(x = "Amount of Fungicide, KG Active Ingredient", y = "Count")
+ggplot(incidence_total)+
+  geom_histogram(aes(x = amt_insect))+
+  labs(x = "Amount of Insecticide, KG Active Ingredient", y = "Count")
+ggplot(incidence_total)+
+  geom_histogram(aes(x = amt_herb))+
+  labs(x = "Amount of Herbicide, KG Active Ingredient", y = "Count")
+```
+```{r across cancers fungicide}
+results_fung <- incidence_total %>%
+  select(c(2:103, 106:108))%>%
+  pivot_longer(-c(amt_fung, amt_insect, amt_herb), names_to = "variable", values_to = "value") %>%
+  group_by(variable) %>%
+  summarize(
+    test = list(cor.test(amt_fung, value, use = "complete.obs")),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    correlation = map_dbl(test, ~ .x$estimate),
+    p_value = map_dbl(test, ~ .x$p.value)
+  ) %>%
+  select(variable, correlation, p_value)
+
+results_fung%>%filter(p_value<0.05)
+```
+
+```{r across cancers insecticide}
+results_insect <- incidence_total %>%
+  select(c(2:103, 106:108))%>%
+  pivot_longer(-c(amt_fung, amt_insect, amt_herb), names_to = "variable", values_to = "value") %>%
+  group_by(variable) %>%
+  summarize(
+    test = list(cor.test(amt_insect, value, use = "complete.obs")),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    correlation = map_dbl(test, ~ .x$estimate),
+    p_value = map_dbl(test, ~ .x$p.value)
+  ) %>%
+  select(variable, correlation, p_value)
+
+results_insect%>%filter(p_value<0.05)
+```
+
+```{r across cancers herbicide}
+results_herb <- incidence_total %>%
+  select(c(2:103, 106:108))%>%
+  pivot_longer(-c(amt_fung, amt_insect, amt_herb), names_to = "variable", values_to = "value") %>%
+  group_by(variable) %>%
+  summarize(
+    test = list(cor.test(amt_herb, value, use = "complete.obs")),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    correlation = map_dbl(test, ~ .x$estimate),
+    p_value = map_dbl(test, ~ .x$p.value)
+  ) %>%
+  select(variable, correlation, p_value)
+
+results_herb%>%filter(p_value<0.05)
+```
