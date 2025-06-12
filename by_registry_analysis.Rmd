@@ -4,6 +4,8 @@ output: pdf_document
 date: "`r Sys.Date()`"
 ---
 
+Note: All data (USGS & SEER) comes from 2008.
+
 ```{r setup & read in file, include=FALSE}
 library(readxl)
 library(tidyverse)
