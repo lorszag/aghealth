@@ -11,8 +11,8 @@ library(dplyr)
 library(tidyverse)
 library(readxl)
 df_2008 = read.delim('/Users/orszagl2/Documents/AgHealth/pesticide_data/EPest.county.estimates.2008.txt')
-incidence_data = read_excel('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Miscellaneous/SEER & USGS Analysis/2008_Incidence_Rates.xlsx')
-compound_categories = read_excel('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth//Miscellaneous/SEER & USGS Analysis/usgs_compounds_v2.xlsx')
+incidence_data = read_excel('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Miscellaneous/SEER & USGS Analysis/Data/2008_Incidence_Rates.xlsx')
+compound_categories = read_excel('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth//Miscellaneous/SEER & USGS Analysis/Data/usgs_compounds_v2.xlsx')
 ```
 
 ```{r fix metolachlor & states, echo = FALSE, warning = FALSE}
@@ -128,3 +128,10 @@ results_herb <- incidence_total %>%
 
 results_herb%>%filter(p_value<0.05)
 ```
+
+```{r}
+write.csv(results_fung, "fungicide_correlation.csv")
+write.csv(results_insect, "insecticide_correlation.csv")
+write.csv(results_herb, "herbicide_correlation.csv")
+```
+

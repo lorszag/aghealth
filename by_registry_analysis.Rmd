@@ -11,7 +11,7 @@ library(readxl)
 library(tidyverse)
 library(dplyr)
 library(ggplot2)
-data = read_excel('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Miscellaneous/SEER & USGS Analysis/2008_Rates_by_Registry.xlsx')
+data = read_excel('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Miscellaneous/SEER & USGS Analysis/Data/2008_Rates_by_Registry.xlsx')
 exp = read.delim('/Users/orszagl2/Documents/AgHealth/pesticide_data/EPest.county.estimates.2008.txt')
 ```
 

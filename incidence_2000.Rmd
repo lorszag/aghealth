@@ -12,7 +12,7 @@ library(readxl)
 
 ```{r read in data, include=FALSE}
 df_2000 = read.delim('/Users/orszagl2/Documents/AgHealth/pesticide_data/EPest.county.estimates.2000.txt')
-incidence_data = read_excel('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Miscellaneous/SEER & USGS Analysis/2000_Incidence_Rates.xlsx')
+incidence_data = read_excel('/Users/orszagl2/Library/CloudStorage/OneDrive-NationalInstitutesofHealth/Miscellaneous/SEER & USGS Analysis/Data/2000_Incidence_Rates.xlsx')
 ```
 
 ```{r fix metolachlor & states, echo = FALSE, warning = FALSE}
@@ -95,5 +95,9 @@ results <- incidence_total_all_can %>%
   select(variable, correlation, p_value)
 
 results%>%filter(p_value<0.05)
+```
+
+```{r}
+write.csv(results, "2000_correlations.csv")
 ```
 
